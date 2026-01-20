@@ -531,31 +531,7 @@ Checkpoint:
 
 ---
 
-## 8. Performance Discussion (Critical Thinking)
-
-Answer the following:
-
-1. Why does video analytics consume more CPU than image analytics?
-2. What happens if frame resolution increases?
-3. Why is edge processing preferred over cloud for real-time analytics?
-
----
-
-## 9. Common Pitfalls
-
-* Forgetting to release the camera resource
-* Running multiple camera programs simultaneously
-* Using high resolutions unnecessarily
-
----
-
-## 10. Extensions (Optional)
-
-These extensions are **not required** to pass the lab. They are intended for students who finish early and want to explore more realistic, model-based analytics.
-
----
-
-### 10.1 Measure FPS (Frames Per Second)
+### 7.7 Measure FPS (Frames Per Second)
 
 Add this to `video_lab.py`:
 
@@ -585,7 +561,7 @@ Checkpoint:
 
 ---
 
-### 10.2 Lower Resolution for Better Performance
+### 7.8 Lower Resolution for Better Performance
 
 **Where to put this:** right after `cap = cv2.VideoCapture(0)`
 
@@ -600,306 +576,26 @@ Checkpoint:
 
 ---
 
-### 10.3 Advanced Extension: MediaPipe (Pose / Face / Object Detection)
 
-⚠ **Not required.** This section introduces pretrained model pipelines. You will run **one** of the following (or all, if you have time):
+## 8. Performance Discussion (Critical Thinking)
 
-* **Pose** (body keypoints)
-* **Face mesh** (dense facial landmarks)
-* **Object detection** (bounding boxes + labels)
+Answer the following:
 
-The goal is not “wow AI”. The goal is to compare:
-
-* classical pipeline (HSV/contours/features)
-  vs
-* model pipeline (pretrained landmarks/detections)
+1. Why does video analytics consume more CPU than image analytics?
+2. What happens if frame resolution increases?
+3. Why is edge processing preferred over cloud for real-time analytics?
 
 ---
 
-#### 10.3.1 Install MediaPipe (inside `imgvid_env`)
+## 9. Common Pitfalls
 
-Make sure you are in the environment:
-
-```bash
-cd ~/inf2009
-source imgvid_env/bin/activate
-```
-
-Install:
-
-```bash
-pip install mediapipe
-```
-
-If this step actually worked, then congratulations. You have just accomplished something borderline miraculous. Please take a moment to appreciate your own genius. Why? Because the latest Mediapipe is not available on the RPi5 OS with the newest Python version.
-
-But do not worry. Mediapipe does behave properly on x86 machines. So if your Raspberry Pi adventure ends in frustration, try installing it on your PC or laptop instead. Those devices are far less judgmental. 
-
-Thus, subsequent steps will only work on an x86 until someone builds the model for ARM platforms. Whoever that hero is, we salute them in advance.
-
-Quick import test:
-
-```bash
-python -c "import mediapipe as mp; print('mediapipe OK')"
-```
+* Forgetting to release the camera resource
+* Running multiple camera programs simultaneously
+* Using high resolutions unnecessarily
 
 ---
 
-#### 10.3.2 MediaPipe Pose (Pose Estimation)
-
-Create `mediapipe_pose.py` and paste this full script:
-
-```python
-import cv2
-import mediapipe as mp
-
-mp_pose = mp.solutions.pose
-mp_draw = mp.solutions.drawing_utils
-
-cap = cv2.VideoCapture(0)
-
-with mp_pose.Pose(
-    static_image_mode=False,
-    model_complexity=1,
-    enable_segmentation=False,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5,
-) as pose:
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        result = pose.process(rgb)
-
-        if result.pose_landmarks:
-            mp_draw.draw_landmarks(
-                frame,
-                result.pose_landmarks,
-                mp_pose.POSE_CONNECTIONS
-            )
-
-        cv2.imshow("MediaPipe Pose", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-cap.release()
-cv2.destroyAllWindows()
-```
-
-Run:
-
-```bash
-python mediapipe_pose.py
-```
-
-Checkpoint:
-
-* Skeleton landmarks appear on your body
-
-What this gives you:
-
-* 33 pose landmarks (a structured feature set)
-
----
-
-#### 10.3.3 MediaPipe Face Mesh (Facial Landmarks)
-
-Create `mediapipe_face_mesh.py` and paste this full script:
-
-```python
-import cv2
-import mediapipe as mp
-
-mp_face_mesh = mp.solutions.face_mesh
-mp_draw = mp.solutions.drawing_utils
-mp_styles = mp.solutions.drawing_styles
-
-cap = cv2.VideoCapture(0)
-
-with mp_face_mesh.FaceMesh(
-    static_image_mode=False,
-    max_num_faces=1,
-    refine_landmarks=True,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5,
-) as face_mesh:
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        result = face_mesh.process(rgb)
-
-        if result.multi_face_landmarks:
-            for face_landmarks in result.multi_face_landmarks:
-                mp_draw.draw_landmarks(
-                    image=frame,
-                    landmark_list=face_landmarks,
-                    connections=mp_face_mesh.FACEMESH_TESSELATION,
-                    landmark_drawing_spec=None,
-                    connection_drawing_spec=mp_styles.get_default_face_mesh_tesselation_style(),
-                )
-
-        cv2.imshow("MediaPipe Face Mesh", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-cap.release()
-cv2.destroyAllWindows()
-```
-
-Run:
-
-```bash
-python mediapipe_face_mesh.py
-```
-
-Checkpoint:
-
-* Face mesh overlay appears on your face
-
-What this gives you:
-
-* 468 face landmarks (dense geometry features)
-
----
-
-#### 10.3.4 MediaPipe Object Detection (Bounding Boxes + Labels)
-
-There are two common ways to do object detection with MediaPipe:
-
-1. **MediaPipe Tasks API** (recommended conceptually, but needs a model file)
-2. Alternative libraries (not covered here)
-
-We will do (1).
-
-**Step A — Download a lightweight object detector model**
-
-Create a folder for models:
-
-```bash
-mkdir -p models
-```
-
-Download an EfficientDet-Lite model (TFLite). Use the provided class link (or your TA-provided link) and save it as:
-
-* `models/efficientdet_lite0.tflite`
-
-(If your class does not provide a model link, skip object detection and do Pose/Face Mesh instead.)
-
-**Step B — Create the script**
-
-Create `mediapipe_object_detector.py` and paste this full script:
-
-```python
-import cv2
-import numpy as np
-
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
-
-MODEL_PATH = "models/efficientdet_lite0.tflite"
-
-# Create detector
-base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
-options = vision.ObjectDetectorOptions(
-    base_options=base_options,
-    score_threshold=0.5,
-    max_results=5
-)
-
-detector = vision.ObjectDetector.create_from_options(options)
-
-cap = cv2.VideoCapture(0)
-
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    # MediaPipe Tasks expects RGB image
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    mp_image = mp_image = mp_image = None
-    mp_image = vision.Image(image_format=vision.ImageFormat.SRGB, data=rgb)
-
-    result = detector.detect(mp_image)
-
-    # Draw detections
-    for det in result.detections:
-        bbox = det.bounding_box
-        x, y, w, h = bbox.origin_x, bbox.origin_y, bbox.width, bbox.height
-
-        label = det.categories[0].category_name if det.categories else "object"
-        score = det.categories[0].score if det.categories else 0.0
-
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.putText(frame, f"{label} {score:.2f}", (x, max(0, y - 10)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-
-    cv2.imshow("MediaPipe Object Detector", frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
-```
-
-Run:
-
-```bash
-python mediapipe_object_detector.py
-```
-
-Checkpoint:
-
-* Boxes and labels appear on detected objects
-
-Important note:
-
-* If the model file is missing, this script will fail immediately.
-
----
-
-#### 10.3.5 What MediaPipe Is Doing (and what it hides)
-
-Model pipeline (high level):
-
-* Captures frame
-* Runs a pretrained model
-* Outputs structured results (landmarks / boxes / labels)
-
-What it **hides** from you:
-
-* how features were chosen
-* how the model was trained
-* why it fails on some poses/lighting/occlusions
-* the real compute/memory costs until you measure them
-
----
-
-#### 10.3.6 Required Comparison (Write-up)
-
-Compare your **classical pipeline** vs **one MediaPipe pipeline** (Pose OR Face Mesh OR Object Detection):
-
-1. **Robustness:** which survives lighting changes better?
-2. **Compute cost:** which has higher CPU usage / lower FPS?
-3. **Explainability:** which is easier to debug?
-4. **Failure cases:** show one failure example for each.
-
-Write a clear trade-off statement:
-
-* Classical methods: simpler, explainable, requires tuning
-* Model methods: more capable, less explainable, heavier dependencies
-
----
-
-## 11. Submission Checklist
+## 10. Submission Checklist
 
 * Screenshots of image outputs
 * Short answers to performance questions
@@ -907,8 +603,8 @@ Write a clear trade-off statement:
 
 ---
 
-## 12. Key Takeaway
+## 11. Key Takeaway
 
 Edge vision systems must balance **accuracy**, **latency**, and **compute cost**. Image analytics builds the foundation; video analytics introduces real-world constraints.
 
-Do not treat them as separate topics—they are part of the same pipeline.
+Do not treat them as separate topics as they are part of the same pipeline.

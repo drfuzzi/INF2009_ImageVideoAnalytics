@@ -38,7 +38,7 @@ By the end of this lab, students should be able to:
 
 ## 4. Environment Setup
 
-This section assumes **no prior completion of the Sound Analytics lab**. Follow all steps exactly.
+Follow all steps exactly.
 
 ---
 
@@ -129,7 +129,7 @@ Key idea: **Video analytics is image analytics + time**.
 
 ## 6. Part A – Image Analytics
 
-In this section, you will process **single images** to extract useful information. The key to avoiding confusion is that you will work from a **single starter script** and progressively add small blocks at clearly marked locations.
+In this section, you will process **single images** to extract useful information. The key to avoiding confusion is that you will work from a **single starter script** and progressively add small code snippets at clearly marked locations.
 
 ---
 
@@ -205,6 +205,9 @@ hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
 Explanation:
 
+* BGR and HSV are two different ways a computer describes colour.
+* In BGR, a colour is described by how much blue, green, and red it contains. These values change a lot when the lighting becomes brighter or darker, even if the colour itself stays the same.
+* HSV describes colour in a more human-like way: Hue tells you what colour it is (e.g. red, green, blue), Saturation tells you how strong the colour is, and Value tells you how bright it is. Because colour and brightness are separated, HSV is less affected by lighting changes. This makes HSV more suitable for colour-based tasks such as segmentation and object detection.
 * OpenCV frames from cameras arrive in **BGR** by default
 * Colour segmentation is more stable in **HSV** (separates colour from brightness)
 
@@ -455,7 +458,7 @@ Checkpoint:
 
 ### 7.5 Motion Detection (Frame Differencing)
 
-This requires **state** (the previous frame). You will add one variable outside the loop, then add the processing inside the loop.
+Motion detection finds areas in an image that have changed between consecutive frames. It works by comparing the current frame with the previous one and highlighting pixels that are different. This method is simple and fast, but it cannot tell the direction of movement—only that something has changed. This requires **state** (the previous frame). You will add one variable outside the loop, then add the processing inside the loop.
 
 **Step 7.5a — Add initialisation**
 
@@ -493,7 +496,7 @@ Checkpoint:
 
 ### 7.6 Optical Flow (Advanced)
 
-Optical flow estimates motion vectors, not just “changed pixels”. It is heavier and may reduce FPS.
+Optical flow estimates how objects move between frames. Instead of just detecting change, it calculates the direction and speed of movement for pixels over time. This provides richer information about motion but requires more computation, making it slower than basic motion detection (reduced fps). Optical flow estimates motion vectors, not just “changed pixels”.
 
 **Step 7.6a — Add initialisation**
 
@@ -524,6 +527,7 @@ Explanation:
 
 * `calcOpticalFlowFarneback()` estimates motion between consecutive frames
 * Magnitude image shows “how much motion” occurred
+* Motion detection and optical flow serve different but complementary purposes. Motion detection is useful for quickly identifying where something has changed in a scene, while optical flow provides more detailed information about how things are moving, such as direction and speed. In practice, motion detection is often used as a lightweight first step, and optical flow is applied only when deeper motion analysis is required. They are not alternatives to each other, but tools that can be used together depending on the task and performance constraints.
 
 Checkpoint:
 

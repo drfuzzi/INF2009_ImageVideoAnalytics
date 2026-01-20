@@ -623,9 +623,21 @@ Checkpoint:
 
 ---
 
-### 10.3 Advanced Extension: MediaPipe Hands (Model-based Analytics)
+### 10.3 Advanced Extension: MediaPipe (Pose / Face / Object Detection)
 
-⚠ **Not required.** This section introduces a pretrained model pipeline. It is useful to compare against your classical pipeline (HSV + contours).
+⚠ **Not required.** This section introduces pretrained model pipelines. You will run **one** of the following (or all, if you have time):
+
+* **Pose** (body keypoints)
+* **Face mesh** (dense facial landmarks)
+* **Object detection** (bounding boxes + labels)
+
+The goal is not “wow AI”. The goal is to compare:
+
+* classical pipeline (HSV/contours/features)
+  vs
+* model pipeline (pretrained landmarks/detections)
+
+---
 
 #### 10.3.1 Install MediaPipe (inside `imgvid_env`)
 
@@ -636,7 +648,7 @@ cd ~/inf2009
 source imgvid_env/bin/activate
 ```
 
-Install MediaPipe:
+Install:
 
 ```bash
 pip install mediapipe
@@ -648,52 +660,45 @@ Quick import test:
 python -c "import mediapipe as mp; print('mediapipe OK')"
 ```
 
-If install fails:
-
-* Verify Raspberry Pi OS is 64-bit
-* Run `pip --version` (must point to `imgvid_env`)
-
 ---
 
-#### 10.3.2 Create a New Script (mediapipe_hands.py)
+#### 10.3.2 MediaPipe Pose (Pose Estimation)
 
-Create `mediapipe_hands.py` and paste this full script:
+Create `mediapipe_pose.py` and paste this full script:
 
 ```python
 import cv2
 import mediapipe as mp
 
-mp_hands = mp.solutions.hands
+mp_pose = mp.solutions.pose
 mp_draw = mp.solutions.drawing_utils
 
 cap = cv2.VideoCapture(0)
 
-with mp_hands.Hands(
+with mp_pose.Pose(
     static_image_mode=False,
-    max_num_hands=2,
+    model_complexity=1,
+    enable_segmentation=False,
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5,
-) as hands:
+) as pose:
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        # MediaPipe expects RGB
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        result = hands.process(rgb)
+        result = pose.process(rgb)
 
-        # Draw landmarks
-        if result.multi_hand_landmarks:
-            for hand_landmarks in result.multi_hand_landmarks:
-                mp_draw.draw_landmarks(
-                    frame,
-                    hand_landmarks,
-                    mp_hands.HAND_CONNECTIONS
-                )
+        if result.pose_landmarks:
+            mp_draw.draw_landmarks(
+                frame,
+                result.pose_landmarks,
+                mp_pose.POSE_CONNECTIONS
+            )
 
-        cv2.imshow("MediaPipe Hands", frame)
+        cv2.imshow("MediaPipe Pose", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
@@ -701,46 +706,210 @@ cap.release()
 cv2.destroyAllWindows()
 ```
 
-Run it:
+Run:
 
 ```bash
-python mediapipe_hands.py
+python mediapipe_pose.py
 ```
 
 Checkpoint:
 
-* You see a live feed with hand landmarks overlaid
-* Press `q` to quit
+* Skeleton landmarks appear on your body
+
+What this gives you:
+
+* 33 pose landmarks (a structured feature set)
 
 ---
 
-#### 10.3.3 What MediaPipe Is Doing (and what it hides)
+#### 10.3.3 MediaPipe Face Mesh (Facial Landmarks)
 
-MediaPipe pipeline (high level):
+Create `mediapipe_face_mesh.py` and paste this full script:
+
+```python
+import cv2
+import mediapipe as mp
+
+mp_face_mesh = mp.solutions.face_mesh
+mp_draw = mp.solutions.drawing_utils
+mp_styles = mp.solutions.drawing_styles
+
+cap = cv2.VideoCapture(0)
+
+with mp_face_mesh.FaceMesh(
+    static_image_mode=False,
+    max_num_faces=1,
+    refine_landmarks=True,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5,
+) as face_mesh:
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        result = face_mesh.process(rgb)
+
+        if result.multi_face_landmarks:
+            for face_landmarks in result.multi_face_landmarks:
+                mp_draw.draw_landmarks(
+                    image=frame,
+                    landmark_list=face_landmarks,
+                    connections=mp_face_mesh.FACEMESH_TESSELATION,
+                    landmark_drawing_spec=None,
+                    connection_drawing_spec=mp_styles.get_default_face_mesh_tesselation_style(),
+                )
+
+        cv2.imshow("MediaPipe Face Mesh", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+cap.release()
+cv2.destroyAllWindows()
+```
+
+Run:
+
+```bash
+python mediapipe_face_mesh.py
+```
+
+Checkpoint:
+
+* Face mesh overlay appears on your face
+
+What this gives you:
+
+* 468 face landmarks (dense geometry features)
+
+---
+
+#### 10.3.4 MediaPipe Object Detection (Bounding Boxes + Labels)
+
+There are two common ways to do object detection with MediaPipe:
+
+1. **MediaPipe Tasks API** (recommended conceptually, but needs a model file)
+2. Alternative libraries (not covered here)
+
+We will do (1).
+
+**Step A — Download a lightweight object detector model**
+
+Create a folder for models:
+
+```bash
+mkdir -p models
+```
+
+Download an EfficientDet-Lite model (TFLite). Use the provided class link (or your TA-provided link) and save it as:
+
+* `models/efficientdet_lite0.tflite`
+
+(If your class does not provide a model link, skip object detection and do Pose/Face Mesh instead.)
+
+**Step B — Create the script**
+
+Create `mediapipe_object_detector.py` and paste this full script:
+
+```python
+import cv2
+import numpy as np
+
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
+
+MODEL_PATH = "models/efficientdet_lite0.tflite"
+
+# Create detector
+base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
+options = vision.ObjectDetectorOptions(
+    base_options=base_options,
+    score_threshold=0.5,
+    max_results=5
+)
+
+detector = vision.ObjectDetector.create_from_options(options)
+
+cap = cv2.VideoCapture(0)
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # MediaPipe Tasks expects RGB image
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    mp_image = mp_image = mp_image = None
+    mp_image = vision.Image(image_format=vision.ImageFormat.SRGB, data=rgb)
+
+    result = detector.detect(mp_image)
+
+    # Draw detections
+    for det in result.detections:
+        bbox = det.bounding_box
+        x, y, w, h = bbox.origin_x, bbox.origin_y, bbox.width, bbox.height
+
+        label = det.categories[0].category_name if det.categories else "object"
+        score = det.categories[0].score if det.categories else 0.0
+
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        cv2.putText(frame, f"{label} {score:.2f}", (x, max(0, y - 10)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+    cv2.imshow("MediaPipe Object Detector", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+```
+
+Run:
+
+```bash
+python mediapipe_object_detector.py
+```
+
+Checkpoint:
+
+* Boxes and labels appear on detected objects
+
+Important note:
+
+* If the model file is missing, this script will fail immediately.
+
+---
+
+#### 10.3.5 What MediaPipe Is Doing (and what it hides)
+
+Model pipeline (high level):
 
 * Captures frame
-* Runs a pretrained detector
-* Outputs landmarks (x,y positions) for hand joints
+* Runs a pretrained model
+* Outputs structured results (landmarks / boxes / labels)
 
 What it **hides** from you:
 
-* feature extraction design
-* threshold tuning under lighting changes
+* how features were chosen
 * how the model was trained
-* why it fails on some poses / occlusions
+* why it fails on some poses/lighting/occlusions
+* the real compute/memory costs until you measure them
 
 ---
 
-#### 10.3.4 Required Comparison (Write-up)
+#### 10.3.6 Required Comparison (Write-up)
 
-Compare your **classical pipeline** vs **MediaPipe**:
+Compare your **classical pipeline** vs **one MediaPipe pipeline** (Pose OR Face Mesh OR Object Detection):
 
-1. **Robustness:** which works better when lighting changes?
-2. **Compute cost:** which has higher CPU usage and lower FPS?
+1. **Robustness:** which survives lighting changes better?
+2. **Compute cost:** which has higher CPU usage / lower FPS?
 3. **Explainability:** which is easier to debug?
 4. **Failure cases:** show one failure example for each.
 
-You are expected to state the trade-off clearly:
+Write a clear trade-off statement:
 
 * Classical methods: simpler, explainable, requires tuning
 * Model methods: more capable, less explainable, heavier dependencies

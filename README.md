@@ -112,28 +112,6 @@ If no errors appear, the Python environment is correctly set up.
 
 ---
 
-### 4.4 Install Required Python Packages
-
-```bash
-pip3 install --upgrade pip
-pip3 install numpy opencv-python
-```
-
-Verify installation:
-
-```bash
-python3 - << EOF
-import cv2
-import numpy
-print("OpenCV:", cv2.__version__)
-print("NumPy:", numpy.__version__)
-EOF
-```
-
-If no errors appear, the Python environment is correctly set up.
-
----
-
 ## 5. Conceptual Background (Read This First)
 
 ### Image vs Video Analytics

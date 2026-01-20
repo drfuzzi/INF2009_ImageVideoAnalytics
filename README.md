@@ -631,6 +631,10 @@ Install:
 pip install mediapipe
 ```
 
+If this step actually worked, then congratulations. You have just accomplished something borderline miraculous. Please take a moment to appreciate your own genius. Why? Because the latest Mediapipe is not available on the RPi5 OS with the newest Python version.
+
+But do not worry. Mediapipe does behave properly on x86 machines. So if your Raspberry Pi adventure ends in frustration, try installing it on your PC or laptop instead. Those devices are far less judgmental.
+
 Quick import test:
 
 ```bash

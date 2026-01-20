@@ -592,6 +592,8 @@ Answer the following:
 * Forgetting to release the camera resource
 * Running multiple camera programs simultaneously
 * Using high resolutions unnecessarily
+* MediaPipe is deliberately excluded from this lab. Although MediaPipe provides powerful pretrained vision models (e.g. face and pose estimation), its support on Raspberry Pi platforms is limited and inconsistent, with installation success highly dependent on specific combinations of operating system, CPU architecture (ARM), and Python version. While workarounds exist, they are not uniformly reliable across student environments and risk detracting from the intended learning objectives. To ensure a stable and equitable learning experience, this lab focuses on classical image and video analytics pipelines on edge devices.
+* A separate guide demonstrating MediaPipe usage on x86 platforms (Windows, macOS, and x86-based Linux), where toolchain support is more reliable, will be provided for supplementary exploration (TBA).
 
 ---
 
@@ -605,6 +607,4 @@ Answer the following:
 
 ## 11. Key Takeaway
 
-Edge vision systems must balance **accuracy**, **latency**, and **compute cost**. Image analytics builds the foundation; video analytics introduces real-world constraints.
-
-Do not treat them as separate topics as they are part of the same pipeline.
+The focus of this lab is on understanding the fundamental image and video analytics pipeline on an edge device, including preprocessing, segmentation, feature extraction, and performance considerations. Edge vision systems must balance **accuracy**, **latency**, and **compute cost**. Image analytics builds the foundation; video analytics introduces real-world constraints. Do not treat them as separate topics as they are part of the same pipeline.

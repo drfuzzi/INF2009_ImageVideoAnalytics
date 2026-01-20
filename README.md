@@ -574,9 +574,176 @@ Answer the following:
 
 ## 10. Extensions (Optional)
 
-* Add FPS (frames per second) measurement
-* Downscale frames to improve performance
-* Apply object detection models (e.g., Haar cascades)
+These extensions are **not required** to pass the lab. They are intended for students who finish early and want to explore more realistic, model-based analytics.
+
+---
+
+### 10.1 Measure FPS (Frames Per Second)
+
+Add this to `video_lab.py`:
+
+**Where to put this (initialisation):** under `# --- ADD STEP 1 CODE BELOW ---`
+
+```python
+import time
+frame_count = 0
+start_time = time.time()
+```
+
+**Where to put this (inside the while-loop, near the end):** just before `cv2.imshow("Video Analytics", frame)`
+
+```python
+frame_count += 1
+elapsed = time.time() - start_time
+if elapsed >= 2.0:
+    fps = frame_count / elapsed
+    print(f"[FPS] {fps:.1f}")
+    frame_count = 0
+    start_time = time.time()
+```
+
+Checkpoint:
+
+* Terminal prints FPS every ~2 seconds
+
+---
+
+### 10.2 Lower Resolution for Better Performance
+
+**Where to put this:** right after `cap = cv2.VideoCapture(0)`
+
+```python
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+```
+
+Checkpoint:
+
+* FPS increases compared to default resolution
+
+---
+
+### 10.3 Advanced Extension: MediaPipe Hands (Model-based Analytics)
+
+⚠ **Not required.** This section introduces a pretrained model pipeline. It is useful to compare against your classical pipeline (HSV + contours).
+
+#### 10.3.1 Install MediaPipe (inside `imgvid_env`)
+
+Make sure you are in the environment:
+
+```bash
+cd ~/inf2009
+source imgvid_env/bin/activate
+```
+
+Install MediaPipe:
+
+```bash
+pip install mediapipe
+```
+
+Quick import test:
+
+```bash
+python -c "import mediapipe as mp; print('mediapipe OK')"
+```
+
+If install fails:
+
+* Verify Raspberry Pi OS is 64-bit
+* Run `pip --version` (must point to `imgvid_env`)
+
+---
+
+#### 10.3.2 Create a New Script (mediapipe_hands.py)
+
+Create `mediapipe_hands.py` and paste this full script:
+
+```python
+import cv2
+import mediapipe as mp
+
+mp_hands = mp.solutions.hands
+mp_draw = mp.solutions.drawing_utils
+
+cap = cv2.VideoCapture(0)
+
+with mp_hands.Hands(
+    static_image_mode=False,
+    max_num_hands=2,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5,
+) as hands:
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # MediaPipe expects RGB
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        result = hands.process(rgb)
+
+        # Draw landmarks
+        if result.multi_hand_landmarks:
+            for hand_landmarks in result.multi_hand_landmarks:
+                mp_draw.draw_landmarks(
+                    frame,
+                    hand_landmarks,
+                    mp_hands.HAND_CONNECTIONS
+                )
+
+        cv2.imshow("MediaPipe Hands", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+cap.release()
+cv2.destroyAllWindows()
+```
+
+Run it:
+
+```bash
+python mediapipe_hands.py
+```
+
+Checkpoint:
+
+* You see a live feed with hand landmarks overlaid
+* Press `q` to quit
+
+---
+
+#### 10.3.3 What MediaPipe Is Doing (and what it hides)
+
+MediaPipe pipeline (high level):
+
+* Captures frame
+* Runs a pretrained detector
+* Outputs landmarks (x,y positions) for hand joints
+
+What it **hides** from you:
+
+* feature extraction design
+* threshold tuning under lighting changes
+* how the model was trained
+* why it fails on some poses / occlusions
+
+---
+
+#### 10.3.4 Required Comparison (Write-up)
+
+Compare your **classical pipeline** vs **MediaPipe**:
+
+1. **Robustness:** which works better when lighting changes?
+2. **Compute cost:** which has higher CPU usage and lower FPS?
+3. **Explainability:** which is easier to debug?
+4. **Failure cases:** show one failure example for each.
+
+You are expected to state the trade-off clearly:
+
+* Classical methods: simpler, explainable, requires tuning
+* Model methods: more capable, less explainable, heavier dependencies
 
 ---
 
